@@ -1,43 +1,83 @@
 # Discord Archive
 
-A local Windows app to export Discord channels and browse saved messages.
+Saves Discord channels to files on your own computer, and gives you a page in the browser to read and search what was saved. It works through a bot you add to the server.
 
-## Quick start
+![Export view](docs/images/export.png)
 
-1. Install Python 3.10 or newer from https://www.python.org/downloads/.
-   During installation, enable **Add Python to PATH**.
-2. Extract this entire ZIP to a folder on your computer.
-3. Double-click **Start.cmd**. The app opens in your browser.
-4. Enter your own Discord token, select servers/channels, and click **Start export**.
+## What it does
 
-No extra Python packages are needed. Keep the app's terminal open while exporting.
-If the browser does not open, copy the local link shown in the terminal.
+- Exports single channels or a whole server, with threads and forum posts.
+- Writes Markdown, HTML, JSON, JSON Lines, CSV or plain text. Pick one or several.
+- Filters by date range, author, text, or pinned messages only.
+- Can download attachments, with a size limit per file and in total.
+- Saves progress as it goes, so an export can be paused and resumed later.
+- Keeps every export in a local library you can search by text, channel, author and day.
 
-## Stop the app
+![Library view](docs/images/library.png)
 
-Double-click **Stop.cmd**, or use **Settings > Quit app**.
-Closing only the browser tab does not stop the app. Progress is saved for resume.
+## Requirements
 
-## Features
+Python 3.10 or newer. There is nothing else to install.
 
-- Select multiple channels or whole servers, including accessible threads.
-- Filter by dates, text, authors, or pinned messages.
-- Export Markdown, HTML, JSON, JSONL, text, or CSV.
-- Pause/resume jobs, search saved messages, and download results as a ZIP.
-- Optional attachment downloads and light/dark themes.
+## Bot setup
 
-## Your data
+1. Create an application in the [Discord Developer Portal](https://discord.com/developers/applications) and add a bot to it.
+2. On the Bot page, turn on Message Content Intent and copy the token.
+3. Invite the bot to your server with the View Channels and Read Message History permissions.
 
-The app creates **data/** for its local library and **exports/** for output files.
-This package contains no previous exports, databases, logs, or saved credentials.
-Your token stays in memory and is cleared when you disconnect or quit.
-Never share your token. Exported files are not encrypted.
+## Running it
 
-Only accessible messages can be exported. Deleted messages cannot be recovered.
-Check the channel report for missing permissions or incomplete results.
+On Windows, double-click `Start.cmd`. On any system:
 
-Discord prohibits personal-account automation and may terminate accounts that use
-it. A bot account is the supported option where it has channel access, Read Message
-History permission, and Message Content Intent enabled.
+```
+python app.py
+```
 
-https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots
+The app opens in your browser. Paste the bot token, pick a server and channels, then start the export. Keep the terminal window open while it runs.
+
+To stop it, use `Stop.cmd`, Settings > Quit app, or Ctrl+C in the terminal. Closing the browser tab does not stop it.
+
+Options:
+
+```
+python app.py --port 8765       use a fixed port
+python app.py --no-browser      do not open the browser
+python app.py --data D:\archive keep the library somewhere else
+```
+
+## Where the files go
+
+- `exports/` holds one folder per export with the files you asked for and a `manifest.json` report.
+- `data/` holds the SQLite library used for search and for resuming.
+
+Both are created next to the app the first time it runs. They are plain files and are not encrypted.
+
+The token is only kept in memory. It is never written to disk and is cleared when you disconnect or quit.
+
+## Limits
+
+- Only messages the bot can read are exported. An empty result can mean the bot is missing Read Message History in that channel.
+- Deleted messages, ephemeral replies and voice audio cannot be exported.
+- The end of the date range is fixed when an export starts. Run a new export to pick up newer messages.
+- Attachment links from Discord expire. Turn on attachment downloads if you need the files to last.
+
+## Layout
+
+```
+app.py            local web server and JSON API
+core/api.py       Discord client, rate limits and retries
+core/engine.py    job queue, channel discovery, paging, attachments
+core/formats.py   file writers for each export format
+core/store.py     SQLite library
+core/instance.py  single-instance lock
+core/lifecycle.py Stop.cmd support on Windows
+web/              the page: index.html, app.js, style.css
+```
+
+The server only listens on 127.0.0.1 and checks a session key on every request.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
+
+Haider Alowlaqi, aka King Specter · ceo@specters.group · haider.alowlaqi@gmail.com · Discord: 9king
