@@ -1,4 +1,4 @@
-"""OS-released lock: prevents two processes from sharing an active job database."""
+"""File lock so two copies of the app never share one library."""
 import os
 from pathlib import Path
 
@@ -11,6 +11,7 @@ class InstanceLock:
         try:
             if os.name == "nt":
                 import msvcrt
+                # msvcrt locks a byte range, so the file needs at least one byte
                 self.handle.seek(0, 2)
                 if self.handle.tell() == 0:
                     self.handle.write(b"0")
@@ -22,7 +23,9 @@ class InstanceLock:
                 fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             self.handle.close()
-            raise RuntimeError("This library is already open in another Archive process. Use its browser tab, or quit it before opening again.") from None
+            raise RuntimeError(
+                "This library is already open in another Discord Archive window. "
+                "Use its browser tab, or quit it first.") from None
 
     def close(self):
         if self.handle.closed:

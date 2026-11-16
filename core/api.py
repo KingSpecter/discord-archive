@@ -1,4 +1,4 @@
-"""Read-only, serialized Discord client. Never logs credentials or response bodies."""
+"""Read-only Discord client. One request at a time, tokens and response bodies are never logged."""
 import json
 import math
 import threading
@@ -6,6 +6,17 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+API = "https://discord.com/api/v10/"
+USER_AGENT = "DiscordBot (https://github.com/KingSpecter/discord-archive, 1.0)"
+MAX_BODY = 32 * 1024 * 1024
+ATTEMPTS = 7
+
+REASONS = {
+    401: "Token rejected or expired. Connect again to resume.",
+    403: "Access denied. Check the bot's channel and history permissions.",
+    404: "Channel or server is unavailable or was deleted.",
+}
 
 
 class ApiError(Exception):
@@ -36,27 +47,33 @@ class Discord:
         if stop.wait(max(0, seconds)):
             raise Stopped()
 
+    ## ---- Requests ----
+
     def get(self, path, params=None, stop=None):
         stop = stop or threading.Event()
         if not path.startswith(("users/", "guilds/", "channels/")) or ".." in path:
             raise ValueError("Invalid Discord endpoint")
-        url = "https://discord.com/api/v10/" + path
+        url = API + path
         if params:
             url += "?" + urlencode(params)
-        for attempt in range(7):
+
+        for attempt in range(ATTEMPTS):
             if stop.is_set():
                 raise Stopped()
             with self.gate:
                 self.wait(self.next_request - time.monotonic(), stop)
                 if not self.token:
                     raise ApiError(401, "Session ended. Connect again to resume.")
-                request = Request(url, headers={"Authorization": self.token,
-                    "User-Agent": "DiscordArchive/1.0 (local read-only export)", "Accept": "application/json"})
+                request = Request(url, headers={
+                    "Authorization": self.token,
+                    "User-Agent": USER_AGENT,
+                    "Accept": "application/json",
+                })
                 try:
                     with self.opener.open(request, timeout=25) as response:
-                        raw = response.read(32 * 1024 * 1024 + 1)
-                        if len(raw) > 32 * 1024 * 1024:
-                            raise ApiError(502, "Discord response exceeded the 32 MB safety limit.")
+                        raw = response.read(MAX_BODY + 1)
+                        if len(raw) > MAX_BODY:
+                            raise ApiError(502, "Discord response was larger than the 32 MB limit.")
                         result = json.loads(raw)
                         delay = self.interval
                         if response.headers.get("X-RateLimit-Remaining") == "0":
@@ -76,17 +93,15 @@ class Discord:
                         delay = min(2 ** (attempt + 1), 30)
                         self.notice = "Discord is temporarily unavailable. Retrying."
                     else:
-                        reasons = {401: "Token rejected or expired. Connect again to resume.",
-                            403: "Access denied. Check channel and history permissions.",
-                            404: "Channel or server is unavailable or was deleted."}
-                        raise ApiError(exc.code, reasons.get(exc.code, f"Discord rejected the request (HTTP {exc.code}).")) from None
+                        message = REASONS.get(exc.code, f"Discord rejected the request (HTTP {exc.code}).")
+                        raise ApiError(exc.code, message) from None
                 except (URLError, TimeoutError, OSError):
                     delay = min(2 ** (attempt + 1), 30)
                     self.notice = "Connection interrupted. Retrying after a short wait."
                 except (ValueError, UnicodeError):
                     raise ApiError(502, "Discord returned an unreadable response. Try again later.") from None
                 self.next_request = time.monotonic() + delay
-        raise ApiError(503, "Discord could not be reached after seven attempts. Progress is saved; resume later.")
+        raise ApiError(503, "Discord could not be reached after seven attempts. Progress is saved, resume later.")
 
     @staticmethod
     def number(value, fallback):
@@ -96,15 +111,21 @@ class Discord:
         except (ValueError, TypeError):
             return fallback
 
+    ## ---- Servers ----
+
     def guilds(self):
         result, cursor = {}, None
         while True:
-            page = self.get("users/@me/guilds", {"limit": 200, **({"after": cursor} if cursor else {})})
+            params = {"limit": 200}
+            if cursor:
+                params["after"] = cursor
+            page = self.get("users/@me/guilds", params)
             if not isinstance(page, list):
                 raise ApiError(502, "Unexpected server list response.")
             if not page:
                 break
-            result.update((g["id"], {"id": g["id"], "name": g.get("name", g["id"])}) for g in page)
+            for g in page:
+                result[g["id"]] = {"id": g["id"], "name": g.get("name", g["id"])}
             next_cursor = str(max(int(g["id"]) for g in page))
             if cursor and int(next_cursor) <= int(cursor):
                 raise ApiError(502, "Server pagination stopped advancing.")
