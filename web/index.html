@@ -1,51 +1,294 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Discord Archive</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Discord Archive</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<div id="login" class="login-screen">
-  <div class="login-brand"><span class="brand-icon" aria-hidden="true">▤</span><b>Archive</b><span class="local-label">LOCAL WORKSPACE</span></div>
-  <main class="login-layout">
-    <div class="login-copy"><span class="overline">YOUR CONVERSATIONS, KEPT CLOSE</span><h1>A place for<br>what was said.</h1><p>Keep the channels that matter.<br>Find the conversation when you need it.</p><div class="login-features"><span>Readable exports</span><span>Searchable history</span><span>Saved on your device</span></div></div>
-    <section class="login-card" aria-labelledby="login-title"><span class="step-label">CONNECT YOUR ACCOUNT</span><h2 id="login-title">Open your workspace</h2><p>Your token connects directly to Discord. It stays in memory until you disconnect or quit.</p>
-      <form id="login-form"><label for="mode">Account type</label><select id="mode"><option value="user">Personal account</option><option value="bot">Bot account</option></select>
-      <label for="token">Discord token</label><div class="token-field"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your token" required aria-describedby="token-note"><button id="show-token" type="button" class="text-button" aria-label="Show token">Show</button></div><small id="token-note">Never share your token. It grants access to your account.</small>
-      <p id="login-error" class="error" role="alert"></p><button id="connect" class="primary wide" type="submit">Connect to Discord <span aria-hidden="true">→</span></button></form>
-      <button id="offline" class="secondary wide">Browse local library</button><p class="policy-note">Discord prohibits personal-account automation and may terminate accounts that use it. <a href="https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots" target="_blank" rel="noreferrer">Read policy ↗</a></p>
+
+<!-- connect screen -->
+<div id="login" class="connect">
+  <header class="connect-brand">Discord Archive</header>
+
+  <main class="connect-main">
+    <section class="connect-intro">
+      <h1>Keep a copy of your server's channels.</h1>
+      <p>
+        Pick channels, choose a date range, and save them as Markdown, HTML, JSON, CSV or text.
+        Everything is written to a folder on this computer and stays searchable here.
+      </p>
+
+      <h2 class="label">Setting up the bot</h2>
+      <ol class="steps">
+        <li>Create an application in the
+          <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">Developer Portal</a>
+          and add a bot to it.</li>
+        <li>On the Bot page, turn on <b>Message Content Intent</b> and copy the token.</li>
+        <li>Invite the bot to your server with <b>View Channels</b> and <b>Read Message History</b>.</li>
+      </ol>
     </section>
-  </main><footer class="login-footer">No cloud storage. No telemetry. No token saved to disk.</footer>
+
+    <section class="connect-card" aria-labelledby="login-title">
+      <h2 id="login-title">Connect a bot</h2>
+      <form id="login-form">
+        <label for="token">Bot token</label>
+        <div class="token-field">
+          <input id="token" type="password" autocomplete="off" spellcheck="false"
+                 placeholder="Paste the token" required aria-describedby="token-note">
+          <button id="show-token" type="button" class="link-button" aria-label="Show token">Show</button>
+        </div>
+        <small id="token-note">Kept in memory only. Cleared when you disconnect or quit.</small>
+        <p id="login-error" class="error" role="alert"></p>
+        <button id="connect" class="primary wide" type="submit">Connect</button>
+      </form>
+      <button id="offline" class="secondary wide" type="button">Open saved library</button>
+    </section>
+  </main>
+
+  <footer class="connect-footer">Runs on 127.0.0.1. Nothing is uploaded anywhere.</footer>
 </div>
-<div id="workspace" class="app-shell" hidden>
-  <aside class="sidebar"><div class="wordmark"><span class="brand-icon" aria-hidden="true">▤</span><b>Archive</b></div><span class="sidebar-label">WORKSPACE</span>
-    <nav aria-label="Main navigation"><button data-view="export" class="nav-item active"><span aria-hidden="true">↙</span>New export<kbd>1</kbd></button><button data-view="library" class="nav-item"><span aria-hidden="true">▤</span>Library<kbd>2</kbd></button><button data-view="activity" class="nav-item"><span aria-hidden="true">◷</span>Activity<kbd>3</kbd></button><button data-view="settings" class="nav-item"><span aria-hidden="true">⚙</span>Settings<kbd>4</kbd></button></nav>
-    <div id="sidebar-job" class="sidebar-job" hidden></div><div class="sidebar-bottom"><button id="shortcuts" class="text-button">Keyboard shortcuts <kbd>?</kbd></button><div class="account"><span id="avatar" class="avatar">L</span><div><b id="account-name">Local library</b><small id="account-state">Offline</small></div><button id="account-action" class="icon-button" title="Connect or disconnect" aria-label="Connect or disconnect">⇄</button></div></div>
-  </aside>
-  <div class="app-body"><header class="topbar"><div><span class="breadcrumb">Workspace <span>/</span></span><b id="page-title">New export</b></div><div class="topbar-right"><span id="connection" class="status-label">Offline</span><button id="theme" class="icon-button" aria-label="Toggle color theme" title="Toggle color theme">◐</button></div></header>
+
+<!-- workspace -->
+<div id="workspace" class="workspace" hidden>
+  <header class="masthead">
+    <div class="brand">Discord Archive</div>
+    <nav class="tabs" aria-label="Views">
+      <button class="tab active" data-view="export">Export</button>
+      <button class="tab" data-view="library">Library</button>
+      <button class="tab" data-view="activity">Activity</button>
+      <button class="tab" data-view="settings">Settings</button>
+    </nav>
+    <div class="session">
+      <span id="connection" class="connection">Offline</span>
+      <button id="account-action" class="secondary small" type="button">Connect</button>
+      <button id="theme" class="secondary small" type="button">Dark</button>
+    </div>
+  </header>
+
   <div id="network-note" class="network-note" role="status" hidden></div>
+
   <main id="main" tabindex="-1">
+
+    <!-- export -->
     <section id="view-export" class="view">
-      <div class="page-heading"><div><span class="overline">MAKE ROOM FOR YOUR HISTORY</span><h1>What would you like to keep?</h1><p>Choose your channels. We’ll take it from here.</p></div><button id="paste-link" class="secondary">↗ Paste channel link</button></div>
-      <div id="offline-banner" class="notice" hidden>Connect to Discord to discover servers and start an export. <button id="connect-inline" class="text-button">Connect account →</button></div>
+      <div id="offline-banner" class="notice" hidden>
+        Connect a bot to list servers and start an export.
+        <button id="connect-inline" class="link-button" type="button">Connect</button>
+      </div>
+
       <div class="export-grid">
-        <section class="server-pane panel"><div class="pane-title"><h2>Servers <span id="server-count" class="count">0</span></h2><button id="refresh-guilds" class="icon-button" title="Refresh servers" aria-label="Refresh servers">↻</button></div><div class="search-wrap"><input id="server-search" type="search" placeholder="Find a server…" aria-label="Find a server"></div><div id="server-list" class="server-list"><div class="empty compact">Connect to see your servers.</div></div></section>
-        <section class="channel-pane panel"><div class="pane-title"><div><h2 id="channel-title">Channels</h2><small id="channel-subtitle">Select a server to get started</small></div></div><div class="channel-tools"><input id="channel-search" type="search" placeholder="Find a channel…" aria-label="Find a channel"><button id="select-visible" class="text-button">Select visible</button></div><div id="channel-list" class="channel-list"><div class="empty"><span class="empty-symbol" aria-hidden="true">#</span><h3>Your archive starts here</h3><p>Pick a server on the left, or paste a channel link.</p></div></div><div class="channel-footer"><button id="selection-count" class="text-button" title="Review selected servers and channels">Nothing selected yet</button><button id="clear-selection" class="text-button">Clear</button></div></section>
-        <aside class="options-pane panel"><div class="pane-title"><h2>Export settings</h2><button id="load-preset" class="text-button" title="Restore saved settings">Restore</button></div><form id="export-form"><div class="settings-scroll">
-          <label for="export-name">Archive name</label><input id="export-name" maxlength="100" placeholder="e.g. Community archive">
-          <fieldset class="format-fieldset"><legend>File formats</legend><div id="formats" class="format-grid"><label><input type="checkbox" value="md" checked><span>Markdown<small>.md</small></span></label><label><input type="checkbox" value="html"><span>Web page<small>.html</small></span></label><label><input type="checkbox" value="json"><span>Raw data<small>.json</small></span></label><label><input type="checkbox" value="csv"><span>Spreadsheet<small>.csv</small></span></label><label><input type="checkbox" value="txt"><span>Plain text<small>.txt</small></span></label><label><input type="checkbox" value="jsonl"><span>JSON Lines<small>.jsonl</small></span></label></div></fieldset>
-          <label>Time range <small>UTC, inclusive dates</small></label><div class="date-presets"><button type="button" data-range="all" class="chip active">All time</button><button type="button" data-range="7" class="chip">7 days</button><button type="button" data-range="30" class="chip">30 days</button></div><div class="date-inputs"><input id="date-from" type="date" aria-label="Start date"><span>to</span><input id="date-to" type="date" aria-label="End date"></div>
-          <label class="toggle-row"><span>Include threads & forum posts<small>Active and accessible archived threads</small></span><input id="include-threads" type="checkbox" checked></label>
-          <details><summary>Filters & attachments</summary><label for="contains">Message contains</label><input id="contains" placeholder="Word or phrase"><label for="authors">Author IDs</label><input id="authors" placeholder="Separate IDs with commas"><label class="check-row"><input id="pinned" type="checkbox">Only pinned messages</label><label class="check-row"><input id="exclude-bots" type="checkbox">Exclude bot messages</label><label class="check-row"><input id="download-media" type="checkbox">Download attachments</label><div class="media-limits"><label>Max file, MB<input id="media-mb" type="number" min="1" max="500" value="25"></label><label>Total, MB<input id="budget-mb" type="number" min="1" max="100000" value="500"></label></div><small>Links are always included. Files are never opened automatically.</small></details>
-          <button id="save-preset" type="button" class="text-button save-preset">Save these settings as default</button></div><div class="start-area"><p id="export-summary">Select channels to create your archive.</p><button id="start-export" type="submit" class="primary wide" disabled>Start export <span aria-hidden="true">→</span></button><small>Read-only • Progress saved automatically</small></div>
-        </form></aside>
+        <section class="panel">
+          <header class="panel-head">
+            <h2 class="label">Servers <span id="server-count" class="count">0</span></h2>
+            <button id="refresh-guilds" class="link-button" type="button">Reload</button>
+          </header>
+          <div class="panel-tools">
+            <input id="server-search" type="search" placeholder="Find a server" aria-label="Find a server">
+          </div>
+          <div id="server-list" class="list">
+            <p class="empty">Servers the bot is in show up here.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <header class="panel-head">
+            <div>
+              <h2 id="channel-title" class="label">Channels</h2>
+              <small id="channel-subtitle">Pick a server first</small>
+            </div>
+            <button id="paste-link" class="link-button" type="button">Add by link</button>
+          </header>
+          <div class="panel-tools">
+            <input id="channel-search" type="search" placeholder="Find a channel" aria-label="Find a channel">
+            <button id="select-visible" class="link-button" type="button">Select shown</button>
+          </div>
+          <div id="channel-list" class="list">
+            <p class="empty">Pick a server on the left, or add a channel by its link.</p>
+          </div>
+          <footer class="panel-foot">
+            <button id="selection-count" class="link-button" type="button" title="Review the selection">Nothing selected</button>
+            <button id="clear-selection" class="link-button" type="button">Clear</button>
+          </footer>
+        </section>
+
+        <aside class="panel">
+          <header class="panel-head">
+            <h2 class="label">Export settings</h2>
+          </header>
+          <form id="export-form" class="settings-form">
+            <div class="settings-scroll">
+              <label for="export-name">Name</label>
+              <input id="export-name" maxlength="100" placeholder="Channel archive">
+
+              <fieldset>
+                <legend>File formats</legend>
+                <div id="formats" class="format-grid">
+                  <label><input type="checkbox" value="md" checked><span>Markdown <code>.md</code></span></label>
+                  <label><input type="checkbox" value="html"><span>Web page <code>.html</code></span></label>
+                  <label><input type="checkbox" value="json"><span>Raw data <code>.json</code></span></label>
+                  <label><input type="checkbox" value="csv"><span>Spreadsheet <code>.csv</code></span></label>
+                  <label><input type="checkbox" value="txt"><span>Plain text <code>.txt</code></span></label>
+                  <label><input type="checkbox" value="jsonl"><span>JSON Lines <code>.jsonl</code></span></label>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Dates <small>UTC, both days included</small></legend>
+                <div class="chips">
+                  <button type="button" data-range="all" class="chip active">All time</button>
+                  <button type="button" data-range="7" class="chip">Last 7 days</button>
+                  <button type="button" data-range="30" class="chip">Last 30 days</button>
+                </div>
+                <div class="date-inputs">
+                  <input id="date-from" type="date" aria-label="From">
+                  <span>to</span>
+                  <input id="date-to" type="date" aria-label="To">
+                </div>
+              </fieldset>
+
+              <label class="check-row">
+                <input id="include-threads" type="checkbox" checked>
+                <span>Include threads and forum posts</span>
+              </label>
+
+              <details>
+                <summary>Filters and attachments</summary>
+                <label for="contains">Message contains</label>
+                <input id="contains" placeholder="Word or phrase">
+                <label for="authors">Author IDs</label>
+                <input id="authors" placeholder="Separate IDs with commas">
+                <label class="check-row"><input id="pinned" type="checkbox"><span>Only pinned messages</span></label>
+                <label class="check-row"><input id="exclude-bots" type="checkbox"><span>Leave out bot messages</span></label>
+                <label class="check-row"><input id="download-media" type="checkbox"><span>Download attachments</span></label>
+                <div class="media-limits">
+                  <label>Largest file, MB<input id="media-mb" type="number" min="1" max="500" value="25"></label>
+                  <label>Total, MB<input id="budget-mb" type="number" min="1" max="100000" value="500"></label>
+                </div>
+                <small>Attachment links are always written to the export, with or without the download.</small>
+              </details>
+
+              <div class="preset-row">
+                <button id="save-preset" type="button" class="link-button">Save as default</button>
+                <button id="load-preset" type="button" class="link-button">Load default</button>
+              </div>
+            </div>
+
+            <div class="start-area">
+              <p id="export-summary">Select channels to export.</p>
+              <button id="start-export" type="submit" class="primary wide" disabled>Start export</button>
+            </div>
+          </form>
+        </aside>
       </div>
     </section>
-    <section id="view-library" class="view" hidden><div class="page-heading"><div><span class="overline">SAVED ON YOUR DEVICE</span><h1>Your library</h1><p>A little less searching. A lot more finding.</p></div><button class="secondary" data-view="export">+ New export</button></div><div class="library-grid"><aside class="panel library-list-pane"><div class="search-wrap"><input id="library-search" type="search" placeholder="Find an archive…" aria-label="Find an archive"></div><div id="library-list"></div></aside><section id="library-detail" class="panel library-detail"><div class="empty"><span class="empty-symbol">▤</span><h3>Everything you keep, right here</h3><p>Select an archive to browse its messages and export files.</p></div></section></div></section>
-    <section id="view-activity" class="view" hidden><div class="page-heading"><div><span class="overline">ONE PAGE AT A TIME</span><h1>Export activity</h1><p>Keep an eye on progress. Pick up where you left off.</p></div></div><div id="activity-list"></div><section id="activity-detail" class="panel activity-detail" hidden></section></section>
-    <section id="view-settings" class="view" hidden><div class="page-heading"><div><span class="overline">YOUR LOCAL WORKSPACE</span><h1>Simple by design.</h1><p>A few controls. Clear boundaries.</p></div></div><div class="settings-grid"><section class="panel settings-card"><h2>Storage & privacy</h2><p>Archives and checkpoints stay in this application’s folder. They are not encrypted. Anyone with access to these files can read them.</p><dl><dt>Export location</dt><dd id="storage-path"></dd><dt>Available disk space</dt><dd id="storage-free"></dd><dt>Message database</dt><dd id="storage-db"></dd></dl><p>The token stays in memory. Disconnecting pauses active work and clears it. Closing this browser tab does not stop exports; use Quit app below.</p></section><section class="panel settings-card"><h2>What an archive includes</h2><p>Messages your account can access within the chosen dates. Threads and forum posts can be included. Downloaded files have per-file and total size limits.</p><p>Deleted messages, ephemeral responses and voice recordings cannot be recovered. Permissions can hide history; an empty response does not prove a channel was empty.</p><p>Each job fixes its end time when started. Resuming continues that snapshot. Start a new export to collect newer messages or edits.</p><p>Markdown and HTML include readable message details. JSON preserves the full message objects, including fields not shown in the reader.</p></section><section class="panel settings-card"><h2>Session</h2><p>Discord prohibits automating personal accounts. A bot account is the supported alternative where you can grant it access and Message Content Intent.</p><div class="button-row"><button id="settings-connect" class="secondary">Connect account</button><button id="quit" class="danger">Quit app</button></div></section></div></section>
-  </main><footer class="workspace-footer"><span>Local first. Yours to keep.</span><span id="footer-stats">No exports yet</span></footer></div>
+
+    <!-- library -->
+    <section id="view-library" class="view" hidden>
+      <div class="library-grid">
+        <aside class="panel">
+          <header class="panel-head">
+            <h2 class="label">Saved exports</h2>
+          </header>
+          <div class="panel-tools">
+            <input id="library-search" type="search" placeholder="Find an export" aria-label="Find an export">
+          </div>
+          <div id="library-list" class="list"></div>
+        </aside>
+        <section id="library-detail" class="panel reader">
+          <p class="empty">Pick an export on the left to read its messages.</p>
+        </section>
+      </div>
+    </section>
+
+    <!-- activity -->
+    <section id="view-activity" class="view" hidden>
+      <div id="activity-list" class="activity-list"></div>
+    </section>
+
+    <!-- settings -->
+    <section id="view-settings" class="view" hidden>
+      <div class="settings-grid">
+        <section class="panel padded">
+          <h2 class="label">Storage</h2>
+          <dl class="facts">
+            <dt>Export folder</dt><dd id="storage-path"></dd>
+            <dt>Free disk space</dt><dd id="storage-free"></dd>
+            <dt>Message database</dt><dd id="storage-db"></dd>
+          </dl>
+          <p>Exports and the database are plain files in the app folder. They are not encrypted, so anyone who can open the folder can read them.</p>
+        </section>
+
+        <section class="panel padded">
+          <h2 class="label">What an export contains</h2>
+          <ul class="plain-list">
+            <li>Messages the bot can read in the chosen channels and dates.</li>
+            <li>Threads and forum posts, when that option is on.</li>
+            <li>Attachment links, and the files themselves if you turn on downloads.</li>
+            <li>The end of the range is fixed when the export starts. Run a new export to pick up later messages or edits.</li>
+            <li>Deleted messages, ephemeral replies and voice audio cannot be exported.</li>
+            <li>An empty channel can also mean the bot is missing Read Message History.</li>
+          </ul>
+        </section>
+
+        <section class="panel padded">
+          <h2 class="label">Session</h2>
+          <p>The token stays in memory. Disconnecting pauses running exports and clears it. Closing the browser tab does not stop the app.</p>
+          <div class="button-row">
+            <button id="settings-connect" class="secondary" type="button">Connect a bot</button>
+            <button id="shortcuts" class="secondary" type="button">Keyboard shortcuts</button>
+            <button id="quit" class="danger" type="button">Quit app</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span id="footer-stats">No exports yet</span>
+    <span id="active-job" class="active-job" hidden></span>
+  </footer>
 </div>
+
 <div id="toast" class="toast" role="status" hidden></div>
-<dialog id="shortcut-dialog"><div class="dialog-head"><h2>Move a little faster</h2><button class="icon-button" data-close="shortcut-dialog" aria-label="Close shortcuts">×</button></div><dl class="shortcut-list"><dt>Search this view</dt><dd><kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd></dd><dt>Start export</dt><dd><kbd>Ctrl</kbd> <kbd>Enter</kbd></dd><dt>Switch workspace view</dt><dd><kbd>Alt</kbd> <kbd>1–4</kbd></dd><dt>Show shortcuts</dt><dd><kbd>?</kbd></dd><dt>Close dialog</dt><dd><kbd>Esc</kbd></dd></dl></dialog>
-<dialog id="link-dialog"><div class="dialog-head"><h2>Jump to a channel</h2><button class="icon-button" data-close="link-dialog" aria-label="Close channel link dialog">×</button></div><form id="link-form"><label for="channel-url">Discord channel or message link</label><input id="channel-url" type="url" required placeholder="https://discord.com/channels/…"><p class="muted">Useful for a specific thread or a channel you already have open.</p><button class="primary wide" type="submit">Add to selection</button></form></dialog>
-<dialog id="selection-dialog"><div class="dialog-head"><h2>Your selection</h2><button class="icon-button" data-close="selection-dialog" aria-label="Close selection">×</button></div><div id="selection-items"></div></dialog>
-</body></html>
+
+<dialog id="shortcut-dialog">
+  <header class="dialog-head">
+    <h2>Keyboard shortcuts</h2>
+    <button class="link-button" data-close="shortcut-dialog" type="button">Close</button>
+  </header>
+  <dl class="shortcut-list">
+    <dt>Search in this view</dt><dd><kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd></dd>
+    <dt>Start export</dt><dd><kbd>Ctrl</kbd> <kbd>Enter</kbd></dd>
+    <dt>Switch view</dt><dd><kbd>Alt</kbd> <kbd>1</kbd> to <kbd>4</kbd></dd>
+    <dt>This list</dt><dd><kbd>?</kbd></dd>
+    <dt>Close a dialog</dt><dd><kbd>Esc</kbd></dd>
+  </dl>
+</dialog>
+
+<dialog id="link-dialog">
+  <header class="dialog-head">
+    <h2>Add a channel by link</h2>
+    <button class="link-button" data-close="link-dialog" type="button">Close</button>
+  </header>
+  <form id="link-form">
+    <label for="channel-url">Channel or message link</label>
+    <input id="channel-url" type="url" required placeholder="https://discord.com/channels/...">
+    <p class="muted">Handy for a single thread, or a channel you already have open in Discord.</p>
+    <button class="primary wide" type="submit">Add to selection</button>
+  </form>
+</dialog>
+
+<dialog id="selection-dialog">
+  <header class="dialog-head">
+    <h2>Selection</h2>
+    <button class="link-button" data-close="selection-dialog" type="button">Close</button>
+  </header>
+  <div id="selection-items"></div>
+</dialog>
+</body>
+</html>
